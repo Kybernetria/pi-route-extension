@@ -1,4 +1,4 @@
-import type { ProtocolHandler } from "@kyvernitria/pi-protocol-minimal";
+type ProtocolHandler = (input: unknown) => unknown | Promise<unknown>;
 
 const CONFIG_DIR_NAME = ".pi";
 import type { RouteConfig } from "../src/catalog.js";
