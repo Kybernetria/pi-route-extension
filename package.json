@@ -1,0 +1,32 @@
+{
+  "name": "pi-route-extension",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Small Pi extension for choosing an AI model/provider for a task.",
+  "main": "extension.ts",
+  "exports": {
+    ".": "./extension.ts",
+    "./router": "./src/router.ts",
+    "./protocol/handlers": "./protocol/handlers.ts",
+    "./pi.protocol.json": "./pi.protocol.json"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@kyvernitria/pi-protocol-minimal": "file:../../pi-protocol/packages/pi-protocol-minimal",
+    "typebox": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.1",
+    "typescript": "^5.9.0",
+    "vitest": "^4.1.0"
+  },
+  "pi": {
+    "extensions": [
+      "./extension.ts"
+    ]
+  }
+}

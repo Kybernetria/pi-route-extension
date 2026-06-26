@@ -1,0 +1,109 @@
+{
+  "protocolVersion": "0.2.0",
+  "nodeId": "route",
+  "packageId": "pi-route-extension",
+  "version": "0.1.0",
+  "purpose": "Choose and explain AI model/provider routing decisions for Pi tasks.",
+  "tags": ["routing", "models", "providers", "cost", "read-only"],
+  "provides": [
+    {
+      "name": "route_model",
+      "description": "Choose the best configured AI model/provider for a task profile.",
+      "inputSchema": { "$ref": "#/definitions/RouteInput" },
+      "outputSchema": { "$ref": "#/definitions/RouteModelResult" },
+      "execution": { "type": "handler", "handler": "route_model" },
+      "effects": ["file_read"]
+    },
+    {
+      "name": "provider_snapshot",
+      "description": "Show routeable, blocked, unavailable, rate-limited, and policy-affected models.",
+      "inputSchema": { "$ref": "#/definitions/ConfigInput" },
+      "outputSchema": { "type": "object" },
+      "execution": { "type": "handler", "handler": "provider_snapshot" },
+      "effects": ["file_read"]
+    },
+    {
+      "name": "route_explain",
+      "description": "Explain a route_model decision in concise human-readable form.",
+      "inputSchema": { "$ref": "#/definitions/RouteInput" },
+      "outputSchema": {
+        "type": "object",
+        "required": ["text", "details"],
+        "properties": {
+          "text": { "type": "string" },
+          "details": { "$ref": "#/definitions/RouteModelResult" }
+        }
+      },
+      "execution": { "type": "handler", "handler": "route_explain" },
+      "effects": ["file_read"]
+    },
+    {
+      "name": "burn_rate_state",
+      "description": "Show simple capacity, rate-limit, and model cost state for configured providers.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "cwd": { "type": "string", "description": "Project directory containing .pi/pi-route.json. Defaults to process.cwd()." },
+          "rootDir": { "type": "string", "description": "Alias for cwd." },
+          "config": { "type": "object", "description": "Optional route config override merged over project config." },
+          "usage": { "$ref": "#/definitions/Usage" }
+        }
+      },
+      "outputSchema": { "type": "object" },
+      "execution": { "type": "handler", "handler": "burn_rate_state" },
+      "effects": ["file_read"]
+    }
+  ],
+  "definitions": {
+    "ConfigInput": {
+      "type": "object",
+      "properties": {
+        "cwd": { "type": "string", "description": "Project directory containing .pi/pi-route.json. Defaults to process.cwd()." },
+        "rootDir": { "type": "string", "description": "Alias for cwd." },
+        "config": { "type": "object", "description": "Optional route config override merged over project config." }
+      }
+    },
+    "RouteInput": {
+      "type": "object",
+      "properties": {
+        "cwd": { "type": "string", "description": "Project directory containing .pi/pi-route.json. Defaults to process.cwd()." },
+        "rootDir": { "type": "string", "description": "Alias for cwd." },
+        "profile": { "$ref": "#/definitions/Profile" },
+        "config": { "type": "object", "description": "Optional route config override merged over project config." }
+      }
+    },
+    "Profile": {
+      "type": "object",
+      "properties": {
+        "kind": { "type": "string", "enum": ["chat", "code", "debug", "analysis", "writing", "vision", "tool_use", "other"] },
+        "expectedContextTokens": { "type": "number" },
+        "desiredStrength": { "type": "string", "enum": ["fast", "balanced", "strong"] },
+        "latencySensitivity": { "type": "string", "enum": ["low", "medium", "high"] },
+        "costSensitivity": { "type": "string", "enum": ["low", "medium", "high"] },
+        "localPreference": { "type": "string", "enum": ["required", "preferred", "neutral", "remote_preferred"] },
+        "requiredCapabilities": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "Usage": {
+      "type": "object",
+      "properties": {
+        "inputTokens": { "type": "number" },
+        "outputTokens": { "type": "number" },
+        "requests": { "type": "number" },
+        "spentUsd": { "type": "number" },
+        "window": { "type": "string", "enum": ["daily", "monthly"] }
+      }
+    },
+    "RouteModelResult": {
+      "type": "object",
+      "required": ["selected", "reason", "candidates", "fallbackCandidates", "warnings"],
+      "properties": {
+        "selected": { "type": "object" },
+        "reason": { "type": "string" },
+        "candidates": { "type": "array", "items": { "type": "object" } },
+        "fallbackCandidates": { "type": "array", "items": { "type": "object" } },
+        "warnings": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}
