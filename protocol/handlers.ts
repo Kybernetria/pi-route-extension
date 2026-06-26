@@ -1,39 +1,51 @@
+/**
+ * Protocol handlers for pi-route-extension.
+ *
+ * Uses lazy dynamic imports for implementation modules so the extension loads
+ * without error even when node_modules are not installed.
+ */
+
 type ProtocolHandler = (input: unknown) => unknown | Promise<unknown>;
 
 const CONFIG_DIR_NAME = ".pi";
 import type { RouteConfig } from "../src/catalog.js";
 import type { RoutingTaskProfile } from "../src/suitability.js";
-import { buildBurnRateState } from "../src/burn-rate.js";
-import { explainRoute } from "../src/explain.js";
-import { mergeConfig, normalizeRouteConfig, projectConfigPath, readRouteConfigWithWarnings } from "../src/provider-registry.js";
-import { routeModel } from "../src/router.js";
-import { buildProviderStateSnapshot } from "../src/state-registry.js";
 
 export function createRouteProtocolHandlers(): Record<string, ProtocolHandler> {
   return {
     route_model: async (input) => {
+      const { routeModel } = await import("../src/router.js");
+      const { mergeConfig, normalizeRouteConfig, projectConfigPath, readRouteConfigWithWarnings } = await import("../src/provider-registry.js");
       const params = parseRoutingInput(input, "route_model input");
-      const loaded = loadProtocolConfig(params.cwd, params.config);
+      const loaded = loadProtocolConfig(params.cwd, params.config, projectConfigPath, readRouteConfigWithWarnings, mergeConfig, normalizeRouteConfig);
       const result = routeModel({ profile: params.profile, config: loaded.config });
       result.warnings.push(...loaded.warnings);
       return result;
     },
     provider_snapshot: async (input) => {
+      const { buildProviderStateSnapshot } = await import("../src/state-registry.js");
+      const { mergeConfig, normalizeRouteConfig, projectConfigPath, readRouteConfigWithWarnings } = await import("../src/provider-registry.js");
       const params = parseConfigInput(input, "provider_snapshot input");
-      const loaded = loadProtocolConfig(params.cwd, params.config);
+      const loaded = loadProtocolConfig(params.cwd, params.config, projectConfigPath, readRouteConfigWithWarnings, mergeConfig, normalizeRouteConfig);
       const snapshot = buildProviderStateSnapshot(loaded.config);
       return { ...snapshot, configWarnings: loaded.warnings };
     },
     route_explain: async (input) => {
+      const { routeModel } = await import("../src/router.js");
+      const { explainRoute } = await import("../src/explain.js");
+      const { mergeConfig, normalizeRouteConfig, projectConfigPath, readRouteConfigWithWarnings } = await import("../src/provider-registry.js");
       const params = parseRoutingInput(input, "route_explain input");
-      const loaded = loadProtocolConfig(params.cwd, params.config);
+      const loaded = loadProtocolConfig(params.cwd, params.config, projectConfigPath, readRouteConfigWithWarnings, mergeConfig, normalizeRouteConfig);
       const result = routeModel({ profile: params.profile, config: loaded.config });
       result.warnings.push(...loaded.warnings);
       return { text: explainRoute(result), details: result };
     },
     burn_rate_state: async (input) => {
+      const { buildBurnRateState } = await import("../src/burn-rate.js");
+      const { buildProviderStateSnapshot } = await import("../src/state-registry.js");
+      const { mergeConfig, normalizeRouteConfig, projectConfigPath, readRouteConfigWithWarnings } = await import("../src/provider-registry.js");
       const params = parseBurnRateInput(input);
-      const loaded = loadProtocolConfig(params.cwd, params.config);
+      const loaded = loadProtocolConfig(params.cwd, params.config, projectConfigPath, readRouteConfigWithWarnings, mergeConfig, normalizeRouteConfig);
       const snapshot = buildProviderStateSnapshot(loaded.config);
       const state = buildBurnRateState([...snapshot.routeableModels, ...snapshot.blockedModels], loaded.config.burnRate, params.usage);
       return { ...state, configWarnings: loaded.warnings };
@@ -60,11 +72,19 @@ interface BurnRateInput extends ConfigInput {
   };
 }
 
-function loadProtocolConfig(cwd = process.cwd(), override?: RouteConfig): { config: RouteConfig; warnings: string[] } {
+function loadProtocolConfig(
+  cwd: string | undefined,
+  override: RouteConfig | undefined,
+  projectConfigPath: (cwd: string, configDir: string) => string,
+  readRouteConfigWithWarnings: (path: string) => { config: RouteConfig; warnings: string[] },
+  mergeConfig: (a: RouteConfig, b: RouteConfig) => RouteConfig,
+  normalizeRouteConfig: (c: RouteConfig) => { config: RouteConfig; warnings: string[] },
+): { config: RouteConfig; warnings: string[] } {
+  const root = cwd ?? process.cwd();
   let fileConfig: RouteConfig = {};
   const warnings: string[] = [];
   try {
-    const loaded = readRouteConfigWithWarnings(projectConfigPath(cwd, CONFIG_DIR_NAME));
+    const loaded = readRouteConfigWithWarnings(projectConfigPath(root, CONFIG_DIR_NAME));
     fileConfig = loaded.config;
     warnings.push(...loaded.warnings.map((warning) => `file config: ${warning}`));
   } catch (error) {
